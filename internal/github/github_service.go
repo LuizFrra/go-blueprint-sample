@@ -1,4 +1,4 @@
-package gitlab
+package github
 
 import (
 	"context"
@@ -6,19 +6,26 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	internalHTTP "test-blueprint/internal/http"
 	"test-blueprint/internal/repository/model"
 )
 
-// GitLabService implements the RepositoryService interface for GitLab.
-type GitLabService struct{}
+// GitHubService implements the RepositoryService interface for GitHub.
+type GitHubService struct {
+	client internalHTTP.Client
+}
 
-// ListUserRepos fetches the repositories for a given GitLab username.
-func (g *GitLabService) ListUserRepos(ctx context.Context, username string) ([]model.Repository, error) {
-	url := fmt.Sprintf("https://gitlab.com/api/v4/users/%s/projects", username)
-	resp, err := http.Get(url)
+func NewGitHubService(client internalHTTP.Client) *GitHubService {
+	return &GitHubService{client: client}
+}
+
+// ListUserRepos fetches the repositories for a given GitHub username.
+func (g *GitHubService) ListUserRepos(ctx context.Context, username string) ([]model.Repository, error) {
+	url := fmt.Sprintf("https://api.github.com/users/%s/repos", username)
+	resp, err := g.client.Get(url)
 
 	if err != nil {
-		log.Printf("Error fetching GitLab repositories for user %s: %v", username, err)
+		log.Printf("Error fetching GitHub repositories for user %s: %v", username, err)
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -28,7 +35,7 @@ func (g *GitLabService) ListUserRepos(ctx context.Context, username string) ([]m
 		return nil, fmt.Errorf("failed to fetch repositories: %s", resp.Status)
 	}
 
-	var repos []GitlabGetRepoDTO
+	var repos []GithubGetRepoDTO
 	if err := json.NewDecoder(resp.Body).Decode(&repos); err != nil {
 		log.Printf("Error decoding response for user %s: %v", username, err)
 		return nil, err

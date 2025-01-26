@@ -2,8 +2,8 @@ package web
 
 import (
 	"net/http"
-	"test-blueprint/internal/repository/github"
-	"test-blueprint/internal/repository/gitlab"
+	"test-blueprint/internal/github"
+	"test-blueprint/internal/gitlab"
 	"test-blueprint/internal/repository/service"
 	"test-blueprint/internal/web/handlers"
 
@@ -27,9 +27,12 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	e.GET("/health", s.healthHandler)
 
+	githubService := github.NewGitHubService(&http.Client{})
+	gitlabService := gitlab.NewGitLabService(&http.Client{})
+
 	listUserReposByPlatformHandler := handlers.NewListUserReposByPlatformHandler(service.NewListUserReposByPlatformServiceBuilder().
-		AddPlatform("github", &github.GitHubService{}).
-		AddPlatform("gitlab", &gitlab.GitLabService{}).
+		AddPlatform("github", githubService).
+		AddPlatform("gitlab", gitlabService).
 		Build())
 
 	e.GET("/:service/:username/repos", listUserReposByPlatformHandler.ListUserReposHandler)
