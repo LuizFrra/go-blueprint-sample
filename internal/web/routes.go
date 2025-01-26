@@ -2,6 +2,10 @@ package web
 
 import (
 	"net/http"
+	"test-blueprint/internal/repository/github"
+	"test-blueprint/internal/repository/gitlab"
+	"test-blueprint/internal/repository/service"
+	"test-blueprint/internal/web/handlers"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -23,7 +27,12 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	e.GET("/health", s.healthHandler)
 
-	e.GET("/:service/:username/repos", s.listUserReposHandler)
+	listUserReposByPlatformHandler := handlers.NewListUserReposByPlatformHandler(service.NewListUserReposByPlatformServiceBuilder().
+		AddPlatform("github", &github.GitHubService{}).
+		AddPlatform("gitlab", &gitlab.GitLabService{}).
+		Build())
+
+	e.GET("/:service/:username/repos", listUserReposByPlatformHandler.ListUserReposHandler)
 
 	return e
 }

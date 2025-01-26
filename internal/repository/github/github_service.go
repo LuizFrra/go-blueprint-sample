@@ -1,6 +1,7 @@
 package github
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -12,7 +13,7 @@ import (
 type GitHubService struct{}
 
 // ListUserRepos fetches the repositories for a given GitHub username.
-func (g *GitHubService) ListUserRepos(username string) ([]model.Repository, error) {
+func (g *GitHubService) ListUserRepos(ctx context.Context, username string) ([]model.Repository, error) {
 	url := fmt.Sprintf("https://api.github.com/users/%s/repos", username)
 	resp, err := http.Get(url)
 

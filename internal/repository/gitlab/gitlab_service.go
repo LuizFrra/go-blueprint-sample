@@ -1,6 +1,7 @@
 package gitlab
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -12,7 +13,7 @@ import (
 type GitLabService struct{}
 
 // ListUserRepos fetches the repositories for a given GitLab username.
-func (g *GitLabService) ListUserRepos(username string) ([]model.Repository, error) {
+func (g *GitLabService) ListUserRepos(ctx context.Context, username string) ([]model.Repository, error) {
 	url := fmt.Sprintf("https://gitlab.com/api/v4/users/%s/projects", username)
 	resp, err := http.Get(url)
 

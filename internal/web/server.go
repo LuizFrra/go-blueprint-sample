@@ -5,30 +5,20 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"test-blueprint/internal/repository/github"
-	"test-blueprint/internal/repository/gitlab"
-	"test-blueprint/internal/repository/model"
 	"time"
 
 	_ "github.com/joho/godotenv/autoload"
 )
 
-type RepositoryService interface {
-	ListUserRepos(username string) ([]model.Repository, error)
-}
-
 type Server struct {
-	port          int
-	githubService RepositoryService
-	gitlabService RepositoryService
+	port int
 }
 
 func NewServer() *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
+
 	NewServer := &Server{
-		port:          port,
-		githubService: &github.GitHubService{},
-		gitlabService: &gitlab.GitLabService{},
+		port: port,
 	}
 
 	// Declare Server config
