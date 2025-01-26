@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"test-blueprint/internal/github"
 	"test-blueprint/internal/gitlab"
+	internalHTTP "test-blueprint/internal/http"
 	"test-blueprint/internal/repository/service"
 	"test-blueprint/internal/web/handlers"
 
@@ -27,8 +28,12 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	e.GET("/health", s.healthHandler)
 
-	githubService := github.NewGitHubService(&http.Client{})
-	gitlabService := gitlab.NewGitLabService(&http.Client{})
+	loggingTransport := &internalHTTP.LoggingTransport{
+		Transport: http.DefaultTransport,
+	}
+
+	githubService := github.NewGitHubService(&http.Client{Transport: loggingTransport})
+	gitlabService := gitlab.NewGitLabService(&http.Client{Transport: loggingTransport})
 
 	listUserReposByPlatformHandler := handlers.NewListUserReposByPlatformHandler(service.NewListUserReposByPlatformServiceBuilder().
 		AddPlatform("github", githubService).
