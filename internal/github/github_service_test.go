@@ -3,8 +3,6 @@ package github_test
 import (
 	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"testing"
@@ -23,68 +21,88 @@ func (m *MockHTTPClient) Get(url string) (*http.Response, error) {
 	return m.Response, m.Error
 }
 
-// TestListUserRepos tests the ListUserRepos method of GitHubService.
+// TestListUserRepos tests the ListUserRepos method of GitHubService with various scenarios.
 func TestListUserRepos(t *testing.T) {
-	// Define the mock response
-	repos := []github.GithubGetRepoDTO{
-		{Name: "repo1", URL: "http://github.com/user/repo1"},
-		{Name: "repo2", URL: "http://github.com/user/repo2"},
-	}
-	repoJSON, _ := json.Marshal(repos)
-
-	// Create a mock HTTP client that returns the mock response
-	mockClient := &MockHTTPClient{
-		Response: &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       ioutil.NopCloser(bytes.NewReader(repoJSON)),
+	// Define test cases
+	tests := []struct {
+		name          string
+		repos         []github.GithubGetRepoDTO
+		expected      int
+		mockResp      *http.Response
+		expectError   bool
+		expectedError string // New field for expected error message
+	}{
+		{
+			name: "valid response with two repos",
+			repos: []github.GithubGetRepoDTO{
+				{Name: "repo1", URL: "http://github.com/user/repo1"},
+				{Name: "repo2", URL: "http://github.com/user/repo2"},
+			},
+			expected:      2,
+			mockResp:      &http.Response{StatusCode: http.StatusOK, Body: ioutil.NopCloser(bytes.NewReader([]byte(`[{"name": "repo1", "url": "http://github.com/user/repo1"},{"name": "repo2", "url": "http://github.com/user/repo2"}]`)))},
+			expectError:   false,
+			expectedError: "",
 		},
-		Error: nil,
+		{
+			name:          "valid response with no repos",
+			repos:         []github.GithubGetRepoDTO{},
+			expected:      0,
+			mockResp:      &http.Response{StatusCode: http.StatusOK, Body: ioutil.NopCloser(bytes.NewReader([]byte(`[]`)))},
+			expectError:   false,
+			expectedError: "",
+		},
+		{
+			name:          "internal server error",
+			expected:      0,
+			mockResp:      &http.Response{StatusCode: http.StatusInternalServerError, Status: "500 Internal Server Error", Body: ioutil.NopCloser(bytes.NewReader([]byte("")))},
+			expectError:   true,
+			expectedError: "failed to fetch repositories: 500 Internal Server Error", // Expected error message
+		},
+		{
+			name:     "decode error",
+			expected: 0,
+			mockResp: &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       ioutil.NopCloser(bytes.NewReader([]byte("invalid json"))),
+			},
+			expectError:   true,
+			expectedError: "invalid character 'i' looking for beginning of value", // Expected error message
+		},
 	}
 
-	// Create the GitHubService with the mock client
-	service := github.NewGitHubService(mockClient)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a mock HTTP client that returns the mock response or error
+			mockClient := &MockHTTPClient{
+				Response: tt.mockResp,
+				Error:    nil, // No need to set Error here since we're using mockResp
+			}
 
-	// Call the method under test
-	result, err := service.ListUserRepos(context.Background(), "user")
+			// Create the GitHubService with the mock client
+			service := github.NewGitHubService(mockClient)
 
-	// Assertions
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
+			// Call the method under test
+			result, err := service.ListUserRepos(context.Background(), "user")
 
-	if len(result) != 2 {
-		t.Fatalf("expected 2 repositories, got %d", len(result))
-	}
-
-	if result[0].Name != "repo1" || result[0].URL != "http://github.com/user/repo1" {
-		t.Errorf("expected first repo to be repo1, got %+v", result[0])
-	}
-
-	if result[1].Name != "repo2" || result[1].URL != "http://github.com/user/repo2" {
-		t.Errorf("expected second repo to be repo2, got %+v", result[1])
-	}
-}
-
-// TestListUserRepos_Error tests the ListUserRepos method when an error occurs.
-func TestListUserRepos_Error(t *testing.T) {
-	// Create a mock HTTP client that returns an error
-	mockClient := &MockHTTPClient{
-		Response: nil,
-		Error:    fmt.Errorf("network error"),
-	}
-
-	// Create the GitHubService with the mock client
-	service := github.NewGitHubService(mockClient)
-
-	// Call the method under test
-	result, err := service.ListUserRepos(context.Background(), "user")
-
-	// Assertions
-	if err == nil {
-		t.Fatalf("expected an error, got none")
-	}
-
-	if result != nil {
-		t.Fatalf("expected no repositories, got %+v", result)
+			// Assertions
+			if tt.expectError {
+				if err == nil {
+					t.Fatalf("expected an error, got none")
+				}
+				if err.Error() != tt.expectedError {
+					t.Fatalf("expected error message '%s', got '%v'", tt.expectedError, err)
+				}
+				if result != nil {
+					t.Fatalf("expected no repositories, got %+v", result)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("expected no error, got %v", err)
+				}
+				if len(result) != tt.expected {
+					t.Fatalf("expected %d repositories, got %d", tt.expected, len(result))
+				}
+			}
+		})
 	}
 }
